@@ -4,6 +4,7 @@ import {
   Home as HomeIcon, FileText, UserCircle, User, X, Calendar, 
   Activity, Baby, Stethoscope, MoreVertical, Check
 } from 'lucide-react';
+import { useNavigate, useLocation } from "react-router-dom";
 
 // --- MOCK DATA ---
 const INITIAL_FAMILIES = [
@@ -77,6 +78,8 @@ const INITIAL_FAMILIES = [
 const VILLAGES = ['All', 'Mavli', 'Gogunda', 'Girwa', 'Jhadol'];
 
 export default function FamilyFolder() {
+  const navigate = useNavigate();
+const location = useLocation();
   const [families, setFamilies] = useState(INITIAL_FAMILIES);
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('All'); // All | High Risk | Follow-ups Due
@@ -436,20 +439,48 @@ export default function FamilyFolder() {
       )}
 
       {/* --- BOTTOM NAVIGATION BAR --- */}
-      <div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 pb-safe z-40 px-2 py-1.5 flex justify-around items-center shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
-        <NavIcon icon={<HomeIcon size={24} strokeWidth={2} />} label="Home" />
-        <NavIcon icon={<Users size={24} strokeWidth={2} />} label="Families" active />
-        
-        {/* FAB Style Add Button */}
-        <div className="relative -top-6">
-          <button className="w-[60px] h-[60px] bg-[#3087DF] rounded-full flex items-center justify-center text-white shadow-[0_8px_20px_-6px_rgba(48,135,223,0.7)] hover:bg-blue-600 hover:scale-105 transition-transform border-[5px] border-white">
-            <Plus size={28} strokeWidth={2.5} />
-          </button>
-        </div>
-        
-        <NavIcon icon={<FileText size={24} strokeWidth={2} />} label="Reports" />
-        <NavIcon icon={<User size={24} strokeWidth={2} />} label="Profile" />
-      </div>
+      {/* --- BOTTOM NAVIGATION BAR --- */}
+<div className="fixed bottom-0 w-full max-w-md bg-white border-t border-gray-100 pb-safe z-40 px-2 py-1.5 flex justify-around items-center shadow-[0_-10px_30px_-15px_rgba(0,0,0,0.1)]">
+
+ <NavIcon 
+  icon={<HomeIcon size={24} strokeWidth={2} />} 
+  label="Home" 
+  active={location.pathname === "/dashboard"} 
+  onClick={() => navigate("/dashboard")} 
+/>
+
+  <NavIcon 
+    icon={<Users size={24} strokeWidth={2} />} 
+    label="Families" 
+    active={location.pathname === "/families"} 
+    onClick={() => navigate("/families")} 
+  />
+
+  {/* FAB */}
+  <div className="relative -top-6">
+    <button 
+      onClick={() => navigate("/add-family")}
+      className="w-[60px] h-[60px] bg-[#3087DF] rounded-full flex items-center justify-center text-white shadow-[0_8px_20px_-6px_rgba(48,135,223,0.7)] hover:bg-blue-600 hover:scale-105 transition-transform border-[5px] border-white"
+    >
+      <Plus size={28} strokeWidth={2.5} />
+    </button>
+  </div>
+
+  <NavIcon 
+    icon={<FileText size={24} strokeWidth={2} />} 
+    label="Reports" 
+    active={location.pathname === "/reports"} 
+    onClick={() => navigate("/reports")} 
+  />
+
+  <NavIcon 
+    icon={<User size={24} strokeWidth={2} />} 
+    label="Profile" 
+    active={location.pathname === "/profile"} 
+    onClick={() => navigate("/profile")} 
+  />
+
+</div>
 
     </div>
   );
@@ -488,11 +519,22 @@ function FilterSection({ title, icon, options, value, onChange, colors = {} }) {
   );
 }
 
-function NavIcon({ icon, label, active }) {
+function NavIcon({ icon, label, active, onClick }) {
   return (
-    <button className={`flex flex-col items-center justify-center w-16 gap-1 mt-1 transition-colors ${active ? 'text-[#3087DF]' : 'text-[#94A3B8] hover:text-[#3087DF]/70'}`}>
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center w-16 gap-1 mt-1 transition-colors ${
+        active 
+          ? 'text-[#3087DF]' 
+          : 'text-[#94A3B8] hover:text-[#3087DF]/70'
+      }`}
+    >
       {icon}
-      <span className={`text-[11px] font-bold ${active ? 'text-[#3087DF]' : 'text-[#94A3B8]'}`}>{label}</span>
+      <span className={`text-[11px] font-bold ${
+        active ? 'text-[#3087DF]' : 'text-[#94A3B8]'
+      }`}>
+        {label}
+      </span>
     </button>
   );
 }

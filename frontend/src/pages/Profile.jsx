@@ -9,8 +9,11 @@ import {
   BookOpen, UserCheck, ChevronRight, LogOut,
   TrendingUp, Shield
 } from 'lucide-react';
+import { useNavigate, useLocation } from "react-router-dom";
 
 export default function Profile() {
+  const navigate = useNavigate();
+const location = useLocation();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [biometricEnabled, setBiometricEnabled] = useState(true);
 
@@ -240,20 +243,48 @@ export default function Profile() {
       </div>
 
       {/* BOTTOM NAVIGATION BAR */}
-      <div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center z-40 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
-        <NavButton icon={Home} label="Home" />
-        <NavButton icon={Users} label="Families" />
-        
-        {/* Floating Action Button (Center) */}
-        <div className="relative -top-6">
-          <button className="bg-[#3087DF] text-white p-4 rounded-full shadow-lg shadow-blue-200 active:scale-95 transition-transform border-4 border-slate-50">
-            <PlusCircle className="w-7 h-7" />
-          </button>
-        </div>
+      {/* BOTTOM NAVIGATION BAR */}
+<div className="fixed bottom-0 left-0 right-0 max-w-md mx-auto bg-white border-t border-slate-200 pb-safe pt-2 px-6 flex justify-between items-center z-40 rounded-t-2xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
 
-        <NavButton icon={FileText} label="Reports" />
-        <NavButton icon={User} label="Profile" active={true} />
-      </div>
+  <NavButton 
+    icon={Home} 
+    label="Home" 
+    active={location.pathname === "/"} 
+    onClick={() => navigate("/")} 
+  />
+
+  <NavButton 
+    icon={Users} 
+    label="Families" 
+    active={location.pathname === "/families"} 
+    onClick={() => navigate("/families")} 
+  />
+
+  {/* Floating Action Button */}
+  <div className="relative -top-6">
+    <button 
+      onClick={() => navigate("/add-family")}
+      className="bg-[#3087DF] text-white p-4 rounded-full shadow-lg shadow-blue-200 active:scale-95 transition-transform border-4 border-slate-50"
+    >
+      <PlusCircle className="w-7 h-7" />
+    </button>
+  </div>
+
+  <NavButton 
+    icon={FileText} 
+    label="Reports" 
+    active={location.pathname === "/reports"} 
+    onClick={() => navigate("/reports")} 
+  />
+
+  <NavButton 
+    icon={User} 
+    label="Profile" 
+    active={location.pathname === "/profile"} 
+    onClick={() => navigate("/profile")} 
+  />
+
+</div>
 
       {/* LOGOUT CONFIRMATION MODAL */}
       {isLogoutModalOpen && (
@@ -287,10 +318,12 @@ export default function Profile() {
   );
 }
 
-// Bottom Nav Helper Component
-const NavButton = ({ icon: Icon, label, active = false }) => (
-  <button className="flex flex-col items-center gap-1 min-w-[48px] py-1 active:scale-95 transition-transform">
-    <Icon className={`w-6 h-6 ${active ? 'text-[#3087DF] fill-blue-50' : 'text-slate-400'}`} />
+const NavButton = ({ icon: Icon, label, active = false, onClick }) => (
+  <button 
+    onClick={onClick}
+    className="flex flex-col items-center gap-1 min-w-[48px] py-1 active:scale-95 transition-transform"
+  >
+    <Icon className={`w-6 h-6 ${active ? 'text-[#3087DF]' : 'text-slate-400'}`} />
     <span className={`text-[10px] font-medium ${active ? 'text-[#3087DF]' : 'text-slate-500'}`}>
       {label}
     </span>
