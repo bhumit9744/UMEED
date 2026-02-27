@@ -174,10 +174,11 @@ export default function App() {
             />
             <div className="h-[1px] bg-slate-100 mx-4"></div>
             <PriorityCard 
-              icon={<HeartPulse className="w-5 h-5 text-[#3087DF]" />}
-              title="NCD Follow-ups"
-              count={priorities.ncdFollowUps}
-            />
+  icon={<HeartPulse className="w-5 h-5 text-[#3087DF]" />}
+  title="NCD Follow-ups"
+  count={priorities.ncdFollowUps}
+  onClick={() => navigate("/ncd-followup")}
+/>
           </div>
         </section>
 
@@ -337,8 +338,14 @@ export default function App() {
 
         {/* Drawer Menu Items */}
         <div className="flex-1 overflow-y-auto py-3 hide-scrollbar">
-          
-          <DrawerItem icon={<Stethoscope />} label="eSanjeevni" onClick={() => setIsDrawerOpen(false)} />
+          <DrawerItem 
+  icon={<Stethoscope />} 
+  label="eSanjeevni" 
+  onClick={() => {
+    setIsDrawerOpen(false);
+    navigate("/esanjeevni");
+  }} 
+/>
 
         </div>
 
@@ -390,10 +397,12 @@ export default function App() {
 
 // --- SUB-COMPONENTS ---
 
-function PriorityCard({ icon, title, count, isCritical }) {
+function PriorityCard({ icon, title, count, isCritical, onClick }) {
   if (count === 0) {
     return (
-      <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors">
+      <div 
+      onClick={onClick}
+      className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors">
         <div className="flex items-center gap-3 opacity-60">
           <div className="bg-green-100 p-2 rounded-xl text-green-600">
             <CheckCircle2 className="w-5 h-5" />
@@ -406,7 +415,9 @@ function PriorityCard({ icon, title, count, isCritical }) {
   }
 
   return (
-    <div className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors group">
+    <div 
+    onClick={onClick}
+    className="p-4 flex items-center justify-between hover:bg-slate-50 cursor-pointer transition-colors group">
       <div className="flex items-center gap-3">
         <div className={`p-2 rounded-xl ${isCritical ? 'bg-red-50' : 'bg-[#ebf4fc]'}`}>
           {icon}

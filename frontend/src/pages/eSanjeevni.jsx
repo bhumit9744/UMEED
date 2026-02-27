@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { 
   ArrowLeft, Video, Plus, Clock, AlertCircle, X, 
   ChevronDown, Search, Filter, Star, CheckCircle, 
@@ -79,7 +79,7 @@ const AVAILABLE_PATIENTS = ['Suresh Kumar', 'Gita Bai', 'Ramesh Singh', 'Pooja V
 const AVAILABLE_DISEASES = Object.keys(DISEASE_TO_SPEC_MAP);
 
 // --- MAIN COMPONENT ---
-export default function App() {
+export default function Esanjeevni() {
   const [consultations, setConsultations] = useState(INITIAL_CONSULTATIONS);
   const [activeFilter, setActiveFilter] = useState('All');
   
@@ -579,62 +579,121 @@ function AddConsultationModal({ onClose, onAdd }) {
   );
 }
 
+
+
 function VideoCallView({ consultation, onEndCall }) {
   const doctor = DOCTORS.find(d => d.id === consultation.assignedDoctorId);
 
+  const localVideoRef = useRef(null);
+  const streamRef = useRef(null);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [micOn, setMicOn] = useState(true);
+
+  useEffect(() => {
+    startCamera();
+
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
+  const startCamera = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+      });
+
+      streamRef.current = stream;
+
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = stream;
+      }
+
+    } catch (err) {
+      console.error("Camera access denied:", err);
+      alert("Camera permission required");
+    }
+  };
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  const toggleCamera = () => {
+    const videoTrack = streamRef.current?.getVideoTracks()[0];
+    if (videoTrack) {
+      videoTrack.enabled = !videoTrack.enabled;
+      setCameraOn(videoTrack.enabled);
+    }
+  };
+
+  const toggleMic = () => {
+    const audioTrack = streamRef.current?.getAudioTracks()[0];
+    if (audioTrack) {
+      audioTrack.enabled = !audioTrack.enabled;
+      setMicOn(audioTrack.enabled);
+    }
+  };
+
   return (
-    <div className="mx-auto max-w-md bg-gray-900 min-h-screen flex flex-col relative overflow-hidden font-sans">
-      {/* Header */}
-      <div className="p-4 flex justify-between items-center bg-gradient-to-b from-black/60 to-transparent absolute top-0 w-full z-10">
-        <span className="font-bold bg-black/40 backdrop-blur-sm text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2">
-          <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-          04:32
-        </span>
-        <span className="text-xs font-semibold text-gray-300 bg-black/40 backdrop-blur-sm px-3 py-1.5 rounded-full">
-          End-to-end Encrypted
-        </span>
+    <div className="mx-auto max-w-md bg-gray-900 min-h-screen flex flex-col relative overflow-hidden">
+
+      {/* Doctor Side (Fake for now) */}
+      <div className="flex-1 flex items-center justify-center relative bg-gray-800">
+        <div className="text-white text-center">
+          <h2 className="text-2xl font-bold">{doctor?.name}</h2>
+          <p className="text-blue-400">{doctor?.spec}</p>
+        </div>
       </div>
 
-      {/* Main Video Area (Doctor) */}
-      <div className="flex-1 flex flex-col items-center justify-center relative bg-gray-800">
-         <div className="text-center z-10">
-            <div className="w-28 h-28 bg-gray-700 rounded-full mx-auto flex items-center justify-center text-4xl text-gray-300 font-bold mb-4 shadow-xl border-4 border-gray-600">
-               {doctor?.name.charAt(4)}
-            </div>
-            <h2 className="text-2xl font-bold text-white mb-1">{doctor?.name}</h2>
-            <p className="text-[#3087DF] font-medium">{doctor?.spec}</p>
-            <p className="text-gray-400 text-sm mt-2">{doctor?.hospital}</p>
-         </div>
-
-         {/* Background glow effect */}
-         <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-gray-800 to-gray-800 opacity-80 pointer-events-none"></div>
-
-         {/* Floating self-view (Patient) */}
-         <div className="absolute bottom-6 right-4 w-28 h-40 bg-gray-700 rounded-xl border-2 border-gray-500 overflow-hidden flex items-center justify-center shadow-lg z-20">
-            <div className="flex flex-col items-center">
-              <span className="text-gray-400 font-bold text-2xl mb-1">{consultation.patientName.charAt(0)}</span>
-              <span className="text-[10px] text-gray-300 bg-black/50 px-2 py-0.5 rounded-full">You</span>
-            </div>
-         </div>
+      {/* Self Video Preview */}
+      <div className="absolute bottom-24 right-4 w-32 h-44 bg-black rounded-xl overflow-hidden border-2 border-gray-500 shadow-lg">
+        <video
+          ref={localVideoRef}
+          autoPlay
+          playsInline
+          muted
+          className="w-full h-full object-cover"
+        />
       </div>
 
       {/* Controls */}
-      <div className="p-8 pb-12 bg-gray-900 flex justify-center gap-6 items-center z-20 border-t border-gray-800">
-        <button className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-gray-300 hover:bg-gray-700 transition-colors">
-          <Mic className="w-5 h-5" />
-        </button>
-        <button className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-gray-300 hover:bg-gray-700 transition-colors">
-          <Video className="w-5 h-5" />
-        </button>
+      <div className="p-8 bg-gray-900 flex justify-center gap-6 items-center border-t border-gray-800">
+
+        {/* Mic Toggle */}
         <button
-          onClick={() => onEndCall(consultation.id)}
-          className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center shadow-[0_0_20px_rgba(239,68,68,0.4)] transition-transform active:scale-95"
+          onClick={toggleMic}
+          className={`w-12 h-12 rounded-full flex items-center justify-center ${
+            micOn ? "bg-gray-800" : "bg-red-500"
+          }`}
+        >
+          <Mic className="w-5 h-5 text-white" />
+        </button>
+
+        {/* Camera Toggle */}
+        <button
+          onClick={toggleCamera}
+          className={`w-12 h-12 rounded-full flex items-center justify-center ${
+            cameraOn ? "bg-gray-800" : "bg-red-500"
+          }`}
+        >
+          <Video className="w-5 h-5 text-white" />
+        </button>
+
+        {/* End Call */}
+        <button
+          onClick={() => {
+            stopCamera();
+            onEndCall(consultation.id);
+          }}
+          className="w-16 h-16 bg-red-500 rounded-full flex items-center justify-center"
         >
           <PhoneOff className="w-7 h-7 text-white" />
         </button>
-        <button className="w-12 h-12 bg-gray-800 rounded-full flex items-center justify-center text-gray-300 hover:bg-gray-700 transition-colors">
-          <Camera className="w-5 h-5" />
-        </button>
+
       </div>
     </div>
   );

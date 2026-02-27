@@ -5,6 +5,7 @@ import Profile from "./pages/Profile";
 import FamilyFolder from "./pages/family_folder";
 import NcdFollowups from "./pages/NcdFollowups";
 import AddFamily from "./pages/AddFamily";
+import Esanjeevni from "./pages/eSanjeevni";
 
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
   <Route path="/families" element={<FamilyFolder />} />
   <Route path="/ncd-followups" element={<NcdFollowups />} />
   <Route path="/add-family" element={<AddFamily />} />
+  <Route path="/esanjeevni" element={<Esanjeevni />} />
 </Routes>
     </Router>
   );
