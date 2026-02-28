@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronLeft, CheckSquare, Square, ClipboardList } from 'lucide-react';
+import { useNavigate } from "react-router-dom";
 
 // --- MOCK DATA ---
 const initialPatients = [
@@ -61,6 +62,8 @@ const initialPatients = [
 ];
 
 export default function NcdFollowups() {
+  
+  const navigate = useNavigate();
   const [patients, setPatients] = useState(initialPatients);
   const [activeFilter, setActiveFilter] = useState('All');
 

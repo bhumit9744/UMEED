@@ -25,6 +25,7 @@ const DISEASE_TO_SPEC_MAP = {
   'Skin Infection': 'General Physician'
 };
 
+// Added missing mock arrays for the Add Consultation Modal
 const AVAILABLE_PATIENTS = ['Ramesh Kumar', 'Sita Devi', 'Amit Singh', 'Priya Patel'];
 const AVAILABLE_DISEASES = Object.keys(DISEASE_TO_SPEC_MAP);
 
@@ -46,6 +47,8 @@ export default function Esanjeevni() {
   useEffect(() => {
     fetchMembers();
   }, []);
+  
+  const answerSetRef = useRef(false);
   
   const fetchMembers = async () => {
     setLoading(true);
@@ -99,6 +102,7 @@ export default function Esanjeevni() {
     }
   };
 
+  // Derived & Filtered Data
   const filteredAndSortedMembers = useMemo(() => {
     let filtered = members;
 
@@ -125,6 +129,7 @@ export default function Esanjeevni() {
     });
   }, [members, activeFilter, searchQuery]);
 
+  // Handlers
   const handleAssignDoctor = (consultationId, doctorId) => {
     setMembers(prev => prev.map(c => {
       if (c.id === consultationId) {
@@ -179,6 +184,27 @@ export default function Esanjeevni() {
         abhaId: consultation.abhaId
       };
 
+      // Add this inside your main Esanjeevni component
+  const handleEndCall = (consultationId) => {
+    // 1. Close WebRTC Connection
+    if (activeCall?.pc) {
+      activeCall.pc.close();
+    }
+    
+    // 2. Stop all camera/mic tracks
+    if (activeCall?.stream) {
+      activeCall.stream.getTracks().forEach(track => track.stop());
+    }
+
+    // 3. Update the patient status in the list to 'Completed'
+    setMembers(prev => prev.map(m => 
+      m.id === consultationId ? { ...m, status: 'Completed' } : m
+    ));
+
+    // 4. Close the video overlay
+    setActiveCall(null);
+  };
+
       const { data, error } = await supabase
         .from('live_consultations')
         .insert([{
@@ -187,14 +213,14 @@ export default function Esanjeevni() {
           patient_report: reportData,
           status: 'calling',
           offer: JSON.stringify(offer),
-          ice_offer: JSON.stringify([]) 
+          ice_offer: JSON.stringify([]) // Initialize empty array
         }])
         .select()
         .single();
 
       if (error) throw error;
 
-      // 1. OUTGOING: Accumulate candidates into an array
+      // 1. OUTGOING: Accumulate candidates into an array to prevent overwrites
       const localIceCandidates = [];
       pc.onicecandidate = async (event) => {
         if (event.candidate) {
@@ -206,7 +232,7 @@ export default function Esanjeevni() {
         }
       };
 
-      // 2. INCOMING: Listen on a unified channel
+      // 2. INCOMING: Listen immediately on a single unified channel
       let doctorIceProcessed = 0;
 
       supabase
@@ -218,24 +244,29 @@ export default function Esanjeevni() {
           filter: `id=eq.${data.id}`
         }, async (payload) => {
           
+          // Handle Answer when it arrives
           if (payload.new.answer && !pc.currentRemoteDescription) {
             const answer = JSON.parse(payload.new.answer);
             await pc.setRemoteDescription(new RTCSessionDescription(answer));
 
+            // Flush any ICE candidates that arrived before the answer
             for (const candidate of pendingCandidatesRef.current) {
               await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
             }
-            pendingCandidatesRef.current = []; 
+            pendingCandidatesRef.current = []; // Clear queue
           }
 
+          // Handle incoming Array of Doctor's ICE Candidates
           if (payload.new.ice_answer) {
             const candidatesArray = JSON.parse(payload.new.ice_answer);
             
+            // Only process new candidates we haven't seen yet
             for (let i = doctorIceProcessed; i < candidatesArray.length; i++) {
               const candidate = candidatesArray[i];
               if (pc.remoteDescription) {
                 await pc.addIceCandidate(new RTCIceCandidate(candidate)).catch(console.error);
               } else {
+                // Queue them safely if the Answer hasn't arrived yet
                 pendingCandidatesRef.current.push(candidate);
               }
               doctorIceProcessed++;
@@ -244,32 +275,12 @@ export default function Esanjeevni() {
         })
         .subscribe();
         
-      // Save data.id so we can delete the row later
-      setActiveCall({ ...consultation, pc, stream, dbRowId: data.id });
+      setActiveCall({ ...consultation, pc, stream });
 
     } catch (error) {
       console.error("Connection failed:", error);
       alert("Database connection failed. Check console for details.");
     }
-  };
-
-  const handleEndCall = async (consultationId) => {
-    // 1. Terminate WebRTC and hardware tracks completely
-    if (activeCall?.pc) activeCall.pc.close();
-    if (activeCall?.stream) activeCall.stream.getTracks().forEach(t => t.stop());
-
-    // 2. Delete Supabase row to prevent ringing loops on the doctor's dashboard
-    if (activeCall?.dbRowId) {
-      try {
-        await supabase.from('live_consultations').delete().eq('id', activeCall.dbRowId);
-      } catch (err) {
-        console.error("Failed to delete stale call record:", err);
-      }
-    }
-
-    updateStatus(consultationId, 'Completed');
-    setActiveCall(null);
-    pendingCandidatesRef.current = [];
   };
 
   if (activeCall) {
@@ -690,6 +701,7 @@ function AddConsultationModal({ onClose, onAdd }) {
 }
 
 function VideoCallView({ consultation, onEndCall }) {
+  const doctor = DOCTORS.find(d => d.id === consultation.assignedDoctorId);
   const remoteVideoRef = useRef(null);
   const localVideoRef = useRef(null);
   const streamRef = useRef(null);
@@ -697,13 +709,16 @@ function VideoCallView({ consultation, onEndCall }) {
   const [micOn, setMicOn] = useState(true);
 
   useEffect(() => {
+    // 1. Attach Local Stream
     if (consultation.stream && localVideoRef.current) {
       streamRef.current = consultation.stream;
       localVideoRef.current.srcObject = consultation.stream;
       
+      // Explicitly play to prevent black screens from autoplay blocks
       localVideoRef.current.play().catch(err => console.error("Local play error:", err));
     }
 
+    // 2. Attach Remote Stream
     if (consultation.pc) {
       consultation.pc.ontrack = (event) => {
         if (remoteVideoRef.current) {
@@ -713,7 +728,17 @@ function VideoCallView({ consultation, onEndCall }) {
         }
       };
     }
+
+    // Notice: We completely removed the return () => cleanup block here. 
+    // React Strict Mode was previously using it to instantly kill your camera.
+
   }, [consultation.stream, consultation.pc]);
+
+  const stopCamera = () => {
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+    }
+  };
 
   const toggleCamera = () => {
     const videoTrack = streamRef.current?.getVideoTracks()[0];
@@ -750,13 +775,14 @@ function VideoCallView({ consultation, onEndCall }) {
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover transform scale-x-[-1]" 
+          className="w-full h-full object-cover transform scale-x-[-1]" /* Added scale-x-[-1] for mirror effect */
         />
       </div>
 
       {/* Controls */}
       <div className="p-8 bg-gray-900 flex justify-center gap-6 items-center border-t border-gray-800">
 
+        {/* Mic Toggle */}
         <button
           onClick={toggleMic}
           className={`w-12 h-12 rounded-full flex items-center justify-center ${
@@ -766,6 +792,7 @@ function VideoCallView({ consultation, onEndCall }) {
           <Mic className="w-5 h-5 text-white" />
         </button>
 
+        {/* Camera Toggle */}
         <button
           onClick={toggleCamera}
           className={`w-12 h-12 rounded-full flex items-center justify-center ${
@@ -775,8 +802,12 @@ function VideoCallView({ consultation, onEndCall }) {
           <Video className="w-5 h-5 text-white" />
         </button>
 
+        {/* End Call */}
         <button
-          onClick={() => onEndCall(consultation.id)}
+          onClick={() => {
+            stopCamera();
+            onEndCall(consultation.id);
+          }}
           className="w-16 h-16 bg-red-500 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors shadow-lg shadow-red-500/30"
         >
           <PhoneOff className="w-7 h-7 text-white" />

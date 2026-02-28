@@ -1,3 +1,4 @@
+import { supabase } from '../supabaseClient';
 import React, { useState, useEffect } from 'react';
 import { 
   Users, UserPlus, HeartPulse, AlertTriangle, ChevronRight, 
@@ -119,7 +120,7 @@ export default function AddFamily() {
   const [appState, setAppState] = useState('ADD_FAMILY'); // ADD_FAMILY, ADD_MEMBER, PREGNANCY_PROMPT, PREGNANCY_FORM, CHILD_FORM, OVERVIEW
   
   const [familyData, setFamilyData] = useState({
-    village: '', headName: '', mobile: '', houseNumber: '', members: []
+    village: '', headName: '', mobile: '', houseNumber: '',abhaID: '', members: []
   });
 
   const [currentMember, setCurrentMember] = useState(getInitialMemberState());
@@ -128,7 +129,7 @@ export default function AddFamily() {
 
   function getInitialMemberState() {
     return {
-      name: '', age: '', gender: 'Female', weight: 60, height: 160, sysBP: 120, sugar: 100, temp: 98.6,
+      name: '', age: '', gender: 'Female', abhaId: '', weight: 60, height: 160, sysBP: 120, sugar: 100, temp: 98.6,
       symptoms: { persistentCough: 'No', chestPain: 'No', breathlessness: 'No', weightLoss: 'No', fever: 'No' },
       history: { diabetes: 'No', hypertension: 'No', tb: 'No' },
       missedFollowUps: 0
@@ -190,6 +191,109 @@ export default function AddFamily() {
     setAppState('OVERVIEW');
   };
 
+  const submitDataToSupabase = async () => {
+    // --- NEW: Validation Check ---
+    if (!familyData.headName || !familyData.village) {
+      alert("Please complete the family details (Name and Village) before saving.");
+      return; // Stops the function from proceeding
+    }
+
+    for (const member of familyData.members) {
+      if (!member.name || !member.age) {
+        alert("Error: One or more members are missing a Name or Age. Please fix this before completing registration.");
+        return; // Stops the function from proceeding
+      }
+    }
+    // -----------------------------
+    try {
+      // 1. Insert Family
+      const { data: familyRes, error: familyErr } = await supabase
+        .from('families')
+        .insert([{
+          village: familyData.village,
+          head_name: familyData.headName,
+          mobile: familyData.mobile,
+          house_number: familyData.houseNumber,
+          abha_id: familyData.abhaID
+        }])
+        .select()
+        .single();
+
+      if (familyErr) throw familyErr;
+      const familyId = familyRes.id;
+
+      // 2. Loop through members and insert them
+      for (const member of familyData.members) {
+        const { data: memberRes, error: memberErr } = await supabase
+          .from('members')
+          .insert([{
+            family_id: familyId,
+            name: member.name,
+            age: parseInt(member.age),
+            gender: member.gender,
+            abha_id: member.abhaId,
+            weight: member.weight,
+            height: member.height,
+            bmi: parseFloat(member.bmi) || null,
+            sys_bp: member.sysBP,
+            sugar: member.sugar,
+            temp: member.temp,
+            symptoms: member.symptoms,
+            history: member.history,
+            missed_follow_ups: member.missedFollowUps,
+            type: member.type,
+            risk_level: member.riskLevel
+          }])
+          .select()
+          .single();
+
+        if (memberErr) throw memberErr;
+        const memberId = memberRes.id;
+
+        // 3a. Insert Pregnancy Data if applicable
+        if (member.type === 'Pregnancy') {
+          // You saved pregnancy/child data into the member object in your finalizeMember function
+          const { error: pregErr } = await supabase
+            .from('pregnancies')
+            .insert([{
+              member_id: memberId,
+              gravida: member.gravida,
+              para: member.para,
+              trimester: member.trimester,
+              lmp: member.lmp || null,
+              history: member.history,
+              vitals: member.vitals,
+              symptoms: member.symptoms,
+              compliance: member.compliance
+            }]);
+          if (pregErr) throw pregErr;
+        }
+
+        // 3b. Insert Child Data if applicable
+        if (member.type === 'Child') {
+          const { error: childErr } = await supabase
+            .from('children')
+            .insert([{
+              member_id: memberId,
+              growth: member.growth,
+              vitals: member.vitals,
+              symptoms: member.symptoms,
+              compliance: member.compliance
+            }]);
+          if (childErr) throw childErr;
+        }
+      }
+
+      alert("Family Data Saved to Server successfully!");
+      setFamilyData({ village: '', headName: '', mobile: '', houseNumber: '', members: [] });
+      setAppState('ADD_FAMILY');
+
+    } catch (error) {
+      console.error("Error saving data:", error);
+      alert("Failed to save data. Please try again.");
+    }
+  };
+
   // --- Views ---
 
   const renderAddFamily = () => (
@@ -229,6 +333,12 @@ export default function AddFamily() {
       <div className="p-4 space-y-4">
         <Card title="Basic Details">
           <TextInput label="Full Name" value={currentMember.name} onChange={(v) => setCurrentMember({...currentMember, name: v})} placeholder="Member's name" />
+          <TextInput 
+            label="ABHA ID (Optional)" 
+            value={currentMember.abhaId} 
+            onChange={(v) => setCurrentMember({...currentMember, abhaId: v})} 
+            placeholder="14-digit ABHA number" 
+          />
           <div className="flex gap-4">
             <div className="flex-1">
               <TextInput label="Age (Years)" value={currentMember.age} onChange={(v) => setCurrentMember({...currentMember, age: v})} type="number" placeholder="e.g. 35" />
@@ -495,12 +605,10 @@ export default function AddFamily() {
       </div>
 
       <StickyBottomBar>
-        <PrimaryButton onClick={() => {
-          alert("Family Data Saved to Server successfully!");
-          // Reset for new family
-          setFamilyData({ village: '', headName: '', mobile: '', houseNumber: '', members: [] });
-          setAppState('ADD_FAMILY');
-        }} className="bg-green-600 hover:bg-green-700">
+        <PrimaryButton 
+          onClick={submitDataToSupabase} 
+          className="bg-green-600 hover:bg-green-700"
+        >
           <CheckCircle2 size={20} /> Complete Registration
         </PrimaryButton>
       </StickyBottomBar>

@@ -29,6 +29,7 @@ import {
   BrainCircuit,
   ChevronDown,
   ChevronUp,
+  BookOpen,
   Plus
 } from 'lucide-react';
 import { useNavigate } from "react-router-dom";
@@ -288,11 +289,11 @@ export default function App() {
   </div>
 
   {/* REPORTS */}
-  <NavItem 
-    icon={<FileText />} 
-    label="Reports" 
-    isActive={location.pathname === "/reports"} 
-    onClick={() => navigate("/reports")} 
+<NavItem 
+    icon={<BookOpen />} 
+    label="Learn" 
+    isActive={location.pathname === "/learn"} 
+    onClick={() => navigate("/learn")} 
   />
 
   {/* PROFILE */}
